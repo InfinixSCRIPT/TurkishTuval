@@ -4,6 +4,29 @@
   <meta charset="UTF-8">
   <title>Çizim Tuvali</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      font-family: sans-serif;
+      background: #f5f5f5;
+    }
+
+    .toolbar {
+      margin: 10px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    canvas {
+      border: 2px solid #000;
+      background: white;
+      cursor: crosshair;
+    }
+  </style>
 </head>
 <body>
   <div class="toolbar">
@@ -12,11 +35,110 @@
     <input type="color" id="colorPicker" onchange="setColor(this.value)">
     <button onclick="fillCanvas()">Boya Kovası</button>
     <button onclick="clearCanvas()">Tuvali Temizle</button>
+    <button onclick="undo()">Geri Al (Ctrl+Z)</button>
     <button onclick="downloadCanvas()">İndir</button>
   </div>
 
   <canvas id="canvas" width="800" height="600"></canvas>
 
-  <script src="script.js"></script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    let painting = false;
+    let currentColor = '#000000';
+    let currentTool = 'pen';
+
+    const undoStack = [];
+
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    canvas.addEventListener('mousedown', () => {
+      painting = true;
+      saveState();
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      painting = false;
+      ctx.beginPath();
+    });
+
+    canvas.addEventListener('mouseleave', () => painting = false);
+    canvas.addEventListener('mousemove', draw);
+
+    function setTool(tool) {
+      currentTool = tool;
+    }
+
+    function setColor(color) {
+      currentColor = color;
+    }
+
+    function draw(e) {
+      if (!painting) return;
+
+      const x = e.offsetX;
+      const y = e.offsetY;
+
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+
+      if (currentTool === 'pen') {
+        ctx.strokeStyle = currentColor;
+      } else if (currentTool === 'eraser') {
+        ctx.strokeStyle = 'white';
+      }
+
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    }
+
+    function clearCanvas() {
+      saveState();
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+    }
+
+    function fillCanvas() {
+      saveState();
+      ctx.fillStyle = currentColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+    }
+
+    function downloadCanvas() {
+      const link = document.createElement('a');
+      link.download = 'tuval.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function saveState() {
+      undoStack.push(canvas.toDataURL());
+      if (undoStack.length > 20) undoStack.shift(); // maksimum 20 adım tut
+    }
+
+    function undo() {
+      if (undoStack.length === 0) return;
+      const imgData = undoStack.pop();
+      const img = new Image();
+      img.src = imgData;
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      };
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.ctrlKey && e.key === 'z') {
+        e.preventDefault();
+        undo();
+      }
+    });
+  </script>
 </body>
 </html>
