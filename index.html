@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Çizim Tuvali</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="setTool('pen')">Kalem</button>
+    <button onclick="setTool('eraser')">Silgi</button>
+    <input type="color" id="colorPicker" onchange="setColor(this.value)">
+    <button onclick="fillCanvas()">Boya Kovası</button>
+    <button onclick="clearCanvas()">Tuvali Temizle</button>
+    <button onclick="downloadCanvas()">İndir</button>
+  </div>
+
+  <canvas id="canvas" width="800" height="600"></canvas>
+
+  <script src="script.js"></script>
+</body>
+</html>
