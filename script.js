@@ -5,7 +5,6 @@ let painting = false;
 let currentColor = '#000000';
 let currentTool = 'pen';
 let currentShape = '';
-let startX, startY;
 const undoStack = [];
 
 ctx.fillStyle = 'white';
@@ -55,68 +54,183 @@ function downloadCanvas() {
   link.click();
 }
 
-function drawShape(x1, y1, x2, y2, shape) {
-  ctx.strokeStyle = currentColor;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
+function draw(e) {
+  if (!painting || currentTool === 'fill' || currentTool === 'shape') return;
 
-  const w = x2 - x1;
-  const h = y2 - y1;
-  const centerX = x1 + w / 2;
-  const centerY = y1 + h / 2;
-  const radius = Math.min(Math.abs(w), Math.abs(h)) / 2;
+  const x = e.offsetX;
+  const y = e.offsetY;
 
-  switch (shape) {
-    case 'rectangle':
-      ctx.rect(x1, y1, w, h);
-      break;
-    case 'circle':
-      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-      break;
-    case 'triangle':
-      ctx.moveTo(centerX, y1);
-      ctx.lineTo(x1, y2);
-      ctx.lineTo(x2, y2);
-      ctx.closePath();
-      break;
-    case 'pentagon':
-    case 'hexagon':
-    case 'octagon':
-    case 'star':
-      drawPolygon(centerX, centerY, radius, shape);
-      break;
-    case 'crescent':
-      drawCrescent(centerX, centerY, radius);
-      break;
-  }
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = currentTool === 'pen' ? currentColor : 'white';
 
+  ctx.lineTo(x, y);
   ctx.stroke();
 }
 
-function drawPolygon(cx, cy, r, type) {
-  let sides = 5;
-  if (type === 'hexagon') sides = 6;
-  if (type === 'octagon') sides = 8;
-  if (type === 'star') {
-    ctx.beginPath();
-    for (let i = 0; i < 10; i++) {
-      const angle = Math.PI / 5 * i;
-      const rad = i % 2 === 0 ? r : r / 2;
-      ctx.lineTo(cx + rad * Math.cos(angle), cy + rad * Math.sin(angle));
-    }
-    ctx.closePath();
+canvas.addEventListener('mousedown', (e) => {
+  const x = e.offsetX;
+  const y = e.offsetY;
+
+  if (currentTool === 'fill') {
+    saveState();
+    floodFill(x, y);
     return;
   }
 
-  ctx.beginPath();
-  for (let i = 0; i <= sides; i++) {
-    const angle = (2 * Math.PI / sides) * i;
-    ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+  if (currentTool === 'shape' && currentShape !== '') {
+    saveState();
+    drawShape(x, y, currentShape);
+    return;
   }
-  ctx.closePath();
+
+  painting = true;
+  saveState();
+
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+});
+
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', () => {
+  painting = false;
+  ctx.beginPath();
+});
+canvas.addEventListener('mouseleave', () => {
+  painting = false;
+  ctx.beginPath();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.ctrlKey && e.key === 'z') {
+    e.preventDefault();
+    undo();
+  }
+});
+
+// === ŞEKİL ÇİZİM ===
+function drawShape(x, y, shape) {
+  ctx.fillStyle = currentColor;
+  ctx.strokeStyle = currentColor;
+
+  const size = 80;
+
+  switch (shape) {
+    case 'rectangle':
+      ctx.fillRect(x - 40, y - 30, 80, 60);
+      break;
+    case 'circle':
+      ctx.beginPath();
+      ctx.arc(x, y, 40, 0, 2 * Math.PI);
+      ctx.fill();
+      break;
+    case 'triangle':
+      ctx.beginPath();
+      ctx.moveTo(x, y - 50);
+      ctx.lineTo(x - 40, y + 30);
+      ctx.lineTo(x + 40, y + 30);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 'pentagon':
+      polygon(x, y, 5, 40);
+      break;
+    case 'hexagon':
+      polygon(x, y, 6, 40);
+      break;
+    case 'octagon':
+      polygon(x, y, 8, 40);
+      break;
+    case 'star':
+      drawStar(x, y, 5, 40, 20);
+      break;
+    case 'crescent':
+      ctx.beginPath();
+      ctx.arc(x, y, 40, 0.2 * Math.PI, 1.8 * Math.PI);
+      ctx.arc(x + 15, y, 30, 1.8 * Math.PI, 0.2 * Math.PI, true);
+      ctx.fill();
+      break;
+  }
 }
 
-function drawCrescent(cx, cy, r) {
+function polygon(x, y, sides, radius) {
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0.2 * Math.PI, 1.8 * Math.PI, false);
-  ctx.arc(cx + r / 3, cy, r, 
+  for (let i = 0; i < sides; i++) {
+    const angle = (i * 2 * Math.PI) / sides - Math.PI / 2;
+    const px = x + radius * Math.cos(angle);
+    const py = y + radius * Math.sin(angle);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawStar(cx, cy, spikes, outerRadius, innerRadius) {
+  const step = Math.PI / spikes;
+  let rot = Math.PI / 2 * 3;
+  let x = cx;
+  let y = cy;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - outerRadius);
+  for (let i = 0; i < spikes; i++) {
+    x = cx + Math.cos(rot) * outerRadius;
+    y = cy + Math.sin(rot) * outerRadius;
+    ctx.lineTo(x, y);
+    rot += step;
+
+    x = cx + Math.cos(rot) * innerRadius;
+    y = cy + Math.sin(rot) * innerRadius;
+    ctx.lineTo(x, y);
+    rot += step;
+  }
+  ctx.lineTo(cx, cy - outerRadius);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// === BOYA KOVASI ===
+function floodFill(startX, startY) {
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const pixels = imageData.data;
+  const width = imageData.width;
+  const height = imageData.height;
+
+  const index = (x, y) => (y * width + x) * 4;
+  const startIdx = index(startX, startY);
+  const targetColor = pixels.slice(startIdx, startIdx + 4);
+
+  const [rNew, gNew, bNew] = hexToRgb(currentColor);
+  const visited = new Uint8Array(width * height);
+  const queue = [[startX, startY]];
+
+  function colorsMatch(i) {
+    return pixels[i] === targetColor[0] &&
+           pixels[i + 1] === targetColor[1] &&
+           pixels[i + 2] === targetColor[2] &&
+           pixels[i + 3] === targetColor[3];
+  }
+
+  while (queue.length) {
+    const [x, y] = queue.shift();
+    const i = index(x, y);
+    if (x < 0 || y < 0 || x >= width || y >= height || visited[y * width + x]) continue;
+    if (!colorsMatch(i)) continue;
+
+    pixels[i] = rNew;
+    pixels[i + 1] = gNew;
+    pixels[i + 2] = bNew;
+    pixels[i + 3] = 255;
+
+    visited[y * width + x] = 1;
+
+    queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function hexToRgb(hex) {
+  hex = hex.replace('#', '');
+  const bigint = parseInt(hex, 16);
+  return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+}
