@@ -33,6 +33,17 @@
     <button onclick="setTool('eraser')">Silgi</button>
     <input type="color" id="colorPicker" onchange="setColor(this.value)">
     <button onclick="setTool('fill')">Boya Kovası</button>
+    <select onchange="setShape(this.value)">
+      <option value="">Şekil Seç</option>
+      <option value="rectangle">Dikdörtgen</option>
+      <option value="circle">Çember</option>
+      <option value="triangle">Üçgen</option>
+      <option value="pentagon">Beşgen</option>
+      <option value="hexagon">Altıgen</option>
+      <option value="octagon">Sekizgen</option>
+      <option value="star">Yıldız</option>
+      <option value="crescent">Hilal</option>
+    </select>
     <button onclick="clearCanvas()">Tuvali Temizle</button>
     <button onclick="undo()">Geri Al (Ctrl+Z)</button>
     <button onclick="downloadCanvas()">İndir</button>
@@ -40,152 +51,6 @@
 
   <canvas id="canvas" width="800" height="600"></canvas>
 
-  <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-
-    let painting = false;
-    let currentColor = '#000000';
-    let currentTool = 'pen';
-    const undoStack = [];
-
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    function setTool(tool) {
-      currentTool = tool;
-    }
-
-    function setColor(color) {
-      currentColor = color;
-    }
-
-    function saveState() {
-      undoStack.push(canvas.toDataURL());
-      if (undoStack.length > 20) undoStack.shift();
-    }
-
-    function undo() {
-      if (undoStack.length === 0) return;
-      const imgData = undoStack.pop();
-      const img = new Image();
-      img.src = imgData;
-      img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-      };
-    }
-
-    function clearCanvas() {
-      saveState();
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.beginPath();
-    }
-
-    function downloadCanvas() {
-      const link = document.createElement('a');
-      link.download = 'tuval.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }
-
-    function draw(e) {
-      if (!painting || currentTool === 'fill') return;
-
-      const x = e.offsetX;
-      const y = e.offsetY;
-
-      ctx.lineWidth = 5;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = currentTool === 'pen' ? currentColor : 'white';
-
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    }
-
-    canvas.addEventListener('mousedown', (e) => {
-      const x = e.offsetX;
-      const y = e.offsetY;
-
-      if (currentTool === 'fill') {
-        saveState();
-        floodFill(x, y);
-        return;
-      }
-
-      painting = true;
-      saveState();
-
-      ctx.beginPath(); // Hatalı çizgileri önlemek için başlangıç
-      ctx.moveTo(x, y);
-    });
-
-    canvas.addEventListener('mousemove', draw);
-
-    canvas.addEventListener('mouseup', () => {
-      painting = false;
-      ctx.beginPath(); // Yolu sıfırla
-    });
-
-    canvas.addEventListener('mouseleave', () => {
-      painting = false;
-      ctx.beginPath();
-    });
-
-    document.addEventListener('keydown', function (e) {
-      if (e.ctrlKey && e.key === 'z') {
-        e.preventDefault();
-        undo();
-      }
-    });
-
-    // === 📌 BOYA KOVASI (FLOOD FILL) ===
-    function floodFill(startX, startY) {
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const pixels = imageData.data;
-      const width = imageData.width;
-      const height = imageData.height;
-
-      const index = (x, y) => (y * width + x) * 4;
-      const startIdx = index(startX, startY);
-      const targetColor = pixels.slice(startIdx, startIdx + 4);
-
-      const [rNew, gNew, bNew] = hexToRgb(currentColor);
-      const visited = new Uint8Array(width * height);
-      const queue = [[startX, startY]];
-
-      function colorsMatch(i) {
-        return pixels[i] === targetColor[0] &&
-               pixels[i + 1] === targetColor[1] &&
-               pixels[i + 2] === targetColor[2] &&
-               pixels[i + 3] === targetColor[3];
-      }
-
-      while (queue.length) {
-        const [x, y] = queue.shift();
-        const i = index(x, y);
-        if (x < 0 || y < 0 || x >= width || y >= height || visited[y * width + x]) continue;
-        if (!colorsMatch(i)) continue;
-
-        pixels[i] = rNew;
-        pixels[i + 1] = gNew;
-        pixels[i + 2] = bNew;
-        pixels[i + 3] = 255;
-
-        visited[y * width + x] = 1;
-
-        queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-      }
-
-      ctx.putImageData(imageData, 0, 0);
-    }
-
-    function hexToRgb(hex) {
-      hex = hex.replace('#', '');
-      const bigint = parseInt(hex, 16);
-      return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
-    }
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
